@@ -9,9 +9,27 @@
     <link href="css/style.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
+    <div id="game">
+      <canvas id="canvasFinal"></canvas>
+    </div>
     <video id="camStream"></video>
     <canvas id="canvas"></canvas>
-    <canvas id="canvasFinal"></canvas>
+    
+    <div>
+      Area:
+      <input type="range" id="area1" oninput="area=this.value" onmouseover="this.title=this.value" min="1" max="48">
+      PixelRatio: 
+      <input type="range" id="ratio1" oninput="minPixelRatio=this.value*1/10" onmouseover="this.title=this.value/10" min="1" max="9">
+      Threshold: 
+      <input type="range" id="threshold1" oninput="threshold=this.value" onmouseover="this.title=this.value" min="1" max="254">
+    </div>
+    <audio controls id="pop">
+      <source src="sound/pop.wav" type="audio/mpeg">
+    </audio>
+    <script>debug=document.location.search.indexOf('debug')>=0</script>
+    <script type="text/javascript" src="js/matter.min.js"></script>
     <script type="text/javascript" src="js/MotionDetector.js"></script>
+    <script type="text/javascript" src="js/game.js"></script>
+    
   </body>
 </html>

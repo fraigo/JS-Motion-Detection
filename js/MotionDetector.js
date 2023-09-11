@@ -15,11 +15,15 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
 // Cross browser support for window.URL.
 window.URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
 
+var area = 32;
+var threshold = 96;    
+  
 
 var MotionDetector = (function() {
   var alpha = 0.5;
   var version = 0;
   var greyScale = false;
+  var overlay = true;
 
   var canvas = document.getElementById('canvas');
   var canvasFinal = document.getElementById('canvasFinal');
@@ -29,6 +33,13 @@ var MotionDetector = (function() {
   var localStream = null;
   var imgData = null;
   var imgDataPrev = [];
+  var minPixelRatio = 0.5;
+
+  document.getElementById('area1').value=area
+  document.getElementById('threshold1').value=threshold
+  document.getElementById('ratio1').value=minPixelRatio*10
+  canvasFinal.setAttribute('class','flipped')
+
 
  
   function success(stream) {
@@ -62,10 +73,39 @@ var MotionDetector = (function() {
 
       var length = imgData.data.length;
       var x = 0;
+      var px = 0;
+      var py = 0;
+      var cw = canvas.width*4
+      var mv = {};
+      var minPixels = minPixelRatio*(area*area)
+      var maxP = 0;
+      var boxes = [];
       while (x < length) {
-        if (!greyScale) {
+        px = Math.floor(x / 4) % canvas.width
+        py = Math.floor(x / cw)
+        if (overlay){
+          var d1 = Math.abs(imgData.data[x]-imgDataPrev[version].data[x])
+          var d2 = Math.abs(imgData.data[x+1]-imgDataPrev[version].data[x+1])
+          var d3 = Math.abs(imgData.data[x+2]-imgDataPrev[version].data[x+2])
+          var gsDiff = (d1+d2+d3)>threshold ? (d1+d2+d3) : 0
+          imgData.data[x    ] = imgData.data[x];
+          imgData.data[x + 1] = imgData.data[x+1];
+          imgData.data[x + 2] = imgData.data[x+2];
+          imgData.data[x + 3] = 255;
+          if (gsDiff) {
+            if (window.debug) imgData.data[x    ] = 255;
+            var id = Math.floor(px/area)+':'+Math.floor(py/area)
+            if (mv[id]){
+              mv[id]+=(gsDiff/32)
+            } else {
+              mv[id]=1
+            }
+            maxP = Math.max(maxP,mv[id])
+          }
+        }
+        else if (!greyScale) {
           // Alpha blending formula: out = (alpha * new) + (1 - alpha) * old.
-          imgData.data[x] = alpha * (255 - imgData.data[x]) + ((1-alpha) * imgDataPrev[version].data[x]);
+          imgData.data[x]     = alpha * (255 - imgData.data[x]) + ((1-alpha) * imgDataPrev[version].data[x]);
           imgData.data[x + 1] = alpha * (255 - imgData.data[x+1]) + ((1-alpha) * imgDataPrev[version].data[x + 1]);
           imgData.data[x + 2] = alpha * (255 - imgData.data[x+2]) + ((1-alpha) * imgDataPrev[version].data[x + 2]);
           imgData.data[x + 3] = 255;
@@ -81,7 +121,29 @@ var MotionDetector = (function() {
         }
         x += 4; 
       }
+      //console.log('minPixel',minPixels,maxP)
+      for(var key in mv){
+        // var val = mv[key]
+        // if (val<minVal) continue;
+        // var pt = key.split(':')
+        // var x = pt[1]*cw + pt[0]*4
+        //console.log(key,pt[0]*area,pt[1]*area)
+        //imgData.data[x] = 255;
+        //imgData.data[x + 1] = 255;
+      }
       ctxFinal.putImageData(imgData, 0, 0);
+      ctxFinal.strokeStyle = "#c0c0c0"
+      for(var key in mv){
+        var val = mv[key]
+        if (val<minPixels) continue;
+        var pt = key.split(':')
+        var x0 = pt[0]*area
+        var y0= pt[1]*area
+        //console.log(area,threshold,key,x0,y0)
+        var box = Bodies.circle(x0, y0, area/2, {isStatic: true, hidden:!window.debug});
+        boxes.push(box)
+      }
+      return boxes;
     }
   }
 
@@ -92,12 +154,12 @@ var MotionDetector = (function() {
     } else { 
       console.error('Your browser does not support getUserMedia');
     }
-    window.setInterval(snapshot, 32);
+    canvas.setAttribute('class','flipped')
   }
 
   return {
-    init: init_
+    init: init_,
+    run: snapshot,
   };
 })();
 
-MotionDetector.init();
